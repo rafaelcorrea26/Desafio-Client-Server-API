@@ -23,8 +23,12 @@ Num terminal, sobe o server:
 go run ./server
 ```
 
-Ele vai imprimir `servidor ouvindo em http://localhost:8080/cotacao` e ficar
-parado esperando requisição.
+Ele vai imprimir a linha abaixo, com data e hora na frente, e ficar parado
+esperando requisição:
+
+```
+servidor ouvindo em http://localhost:8080/cotacao
+```
 
 Em **outro** terminal, na mesma pasta, roda o client:
 
@@ -51,7 +55,7 @@ server/server.go   endpoint /cotacao na porta 8080 e gravação no banco
 ```
 
 Os dois estão em pastas separadas porque os dois são `package main` e têm uma
-`func main()` — se ficassem soltos na mesma pasta o Go não compila.
+`func main()`. Se ficassem soltos na mesma pasta o Go não compila.
 
 O `cotacoes.db` e o `cotacao.txt` são criados na hora que os programas rodam,
 por isso não estão no repositório.
@@ -72,21 +76,25 @@ sqlite3 cotacoes.db "select id, bid, criado_em from cotacoes"
 Usei o driver `modernc.org/sqlite` e não o `mattn/go-sqlite3`, que é o mais
 conhecido. O mattn depende de CGO e precisa de um compilador C instalado na
 máquina pra compilar, e eu não tinha. O modernc é escrito em Go puro, então
-compila em qualquer lugar sem instalar nada.
+compila sem precisar de um compilador C.
 
 ## Observações sobre os timeouts
+
+Se a API de câmbio passar dos 200ms, o erro vai pro log do server e o client
+recebe um status 500. Nesse caso nada é gravado e o `cotacao.txt` não é alterado.
 
 O de 10ms do banco é curto. O sqlite grava em disco de verdade, então às vezes
 ele passa desse tempo. Quando isso acontece o erro vai pro log do server, mas a
 cotação ainda é devolvida pro client, porque ela já tinha sido buscada.
 
-Esse log não quer dizer que a linha se perdeu. Nos testes com 10ms, as linhas
-que deram timeout ficaram gravadas. Com prazos bem menores, parte delas não
-ficou.
+Esse log não quer dizer que a linha se perdeu. Num teste com API simulada e 300
+requisições, uma de cada vez, 27 deram timeout no log e as 300 linhas ficaram
+gravadas. Esses números mudam de uma máquina pra outra.
 
 O server usa uma conexão só com o banco (`SetMaxOpenConns(1)`), porque o sqlite
 não aceita duas gravações ao mesmo tempo. Com várias requisições juntas elas
-fazem fila, e as que passam dos 10ms esperando podem não ser gravadas.
+fazem fila, e as que passam dos 10ms esperando podem não ser gravadas. No mesmo
+teste, com 20 requisições simultâneas, só 26 das 300 linhas ficaram gravadas.
 
 O contexto do server é derivado do `r.Context()`, que é o contexto da própria
 requisição. Isso quer dizer que se o client desistir antes (nos 300ms dele), o
