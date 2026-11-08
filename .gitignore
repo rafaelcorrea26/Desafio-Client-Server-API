@@ -1,0 +1,11 @@
+# Binários compilados
+*.exe
+*.exe~
+
+# Banco de dados gerado em tempo de execução
+*.db
+*.db-shm
+*.db-wal
+
+# Arquivo gerado pelo client
+cotacao.txt
